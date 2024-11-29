@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订单管理后台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background: #f4f4f4;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0;
+            background: #fff;
+            padding: 15px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .login-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+
+        th {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .status-new {
+            color: #ff4444;
+            font-weight: bold;
+        }
+
+        .status-completed {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .login-form {
+                flex-direction: column;
+            }
+
+            input, button {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            th, td {
+                padding: 8px;
+                min-width: 100px;
+            }
+
+            td button {
+                padding: 6px 10px;
+                margin: 2px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>订单管理系统</h1>
+            <div class="login-form">
+                <input type="password" id="adminPassword" placeholder="请输入管理密码">
+                <button onclick="login()">登录</button>
+            </div>
+        </div>
+        <div id="orderList" style="display: none;">
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>订单时间</th>
+                            <th>微信号</th>
+                            <th>手机号</th>
+                            <th>密码</th>
+                            <th>产品</th>
+                            <th>课程</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orderTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ADMIN_PASSWORD = '123456';
+        let orders = [];  // 初始化为空数组
+
+        // 添加定时刷新功能
+        function refreshOrders() {
+            orders = JSON.parse(localStorage.getItem('orders') || '[]');
+            if (document.getElementById('orderList').style.display === 'block') {
+                loadOrders();
+            }
+        }
+
+        // 每5秒刷新一次订单数据
+        setInterval(refreshOrders, 5000);
+
+        function login() {
+            const password = document.getElementById('adminPassword').value;
+            if (password === ADMIN_PASSWORD) {
+                document.getElementById('orderList').style.display = 'block';
+                refreshOrders();  // 登录时立即刷新
+            } else {
+                alert('密码错误！');
+            }
+        }
+
+        function loadOrders() {
+            const tbody = document.getElementById('orderTableBody');
+            tbody.innerHTML = '';
+            
+            // 倒序显示订单，最新的在最上面
+            const reversedOrders = [...orders].reverse();
+            
+            reversedOrders.forEach((order, index) => {
+                const tr = document.createElement('tr');
+                const realIndex = orders.length - 1 - index; // 计算真实索引
+                tr.innerHTML = `
+                    <td>${order.time}</td>
+                    <td>${order.name}</td>
+                    <td>${order.phone}</td>
+                    <td>${order.password}</td>
+                    <td>${getProductName(order.product)}</td>
+                    <td>${order.quantity}</td>
+                    <td class="${order.status === '新订单' ? 'status-new' : 'status-completed'}">${order.status}</td>
+                    <td>
+                        <button onclick="changeStatus(${realIndex})">${order.status === '新订单' ? '完成' : '重置'}</button>
+                        <button onclick="deleteOrder(${realIndex})" style="background: #ff4444;">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 添加产品名称转换函数
+        function getProductName(productValue) {
+            const productMap = {
+                'product1': '学习通视频＋测验',
+                'product2': '学习通单考试',
+                'product3': '学习通全包',
+                'product4': '智慧树全套'
+            };
+            return productMap[productValue] || productValue;
+        }
+
+        function changeStatus(index) {
+            orders[index].status = orders[index].status === '新订单' ? '已完成' : '新订单';
+            localStorage.setItem('orders', JSON.stringify(orders));
+            loadOrders();
+        }
+
+        function deleteOrder(index) {
+            if (confirm('确定要删除这个订单吗？')) {
+                orders.splice(index, 1);
+                localStorage.setItem('orders', JSON.stringify(orders));
+                loadOrders();
+            }
+        }
+
+        // 页面加载时也启动刷新
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshOrders();
+        });
+    </script>
+</body>
+</html> 
